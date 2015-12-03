@@ -1,0 +1,26 @@
+# start cluster
+$ elasticluster start -v gridengine
+
+# get instance name of frontend
+ZONE=europe-west1-d
+FRONTEND=$(elasticluster list-nodes gridengine | grep -A 3 "\- frontend001" | grep -o elasticluster-.*)
+
+# create the shared disk if it does not exist yet
+gcloud compute disks create gridengine-shared --zone ${ZONE} \
+  --size 500GB
+
+ # attach the persistent disk to the master node
+gcloud compute instances attach-disk ${FRONTEND} --zone ${ZONE} \
+  --disk gridengine-shared --device-name gridengine-shared
+
+# copy the initiation scripts to the master node
+elasticluster sftp gridengine << 'EOF'
+mkdir init
+put init-scripts/* init/
+EOF
+
+
+
+
+
+

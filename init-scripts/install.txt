@@ -1,0 +1,65 @@
+## locally
+$ elasticluster start -v gridengine
+[ go to cloud.google.com, create a new 500gb free disk, edit frontend node and add the disk]
+$ elasticluster ssh gridengine
+
+## on frontend node
+
+# create partition on 500gb disk
+$ sudo parted /dev/sdb
+(parted) mktable gpt
+(parted) mkpart ext4 1 -1
+(parted) quit
+
+# create file system on partition
+$ sudo mkfs -t ext4 /dev/sdb1
+
+# sort out the gluster data sharing
+sudo apt-get install -y glusterfs-server
+sudo mkdir -p /mnt/shared
+echo "/dev/sdb1    /mnt/shared    ext4    defaults    0    0" | sudo tee -a /etc/fstab
+sudo mount /mnt/shared
+sudo mkdir /shared
+sudo gluster volume create shared transport tcp frontend001:/mnt/shared/brick
+sudo gluster volume start shared
+echo "frontend001:/shared /shared glusterfs   defaults,_netdev    0   0" | sudo tee -a /etc/fstab
+sudo mount /shared
+
+# install gluster and mount share on all compute nodes
+CMD="sudo apt-get install -y glusterfs-client time && sudo mkdir /shared && echo 'frontend001:/shared /shared glusterfs   defaults,_netdev    0   0' | sudo tee -a /etc/fstab && sudo mount /shared"
+for node in $(grep -o "compute.*" /etc/hosts); do ssh $node "$CMD"; done
+
+# sort out the gridengine parallell environment
+sudo qconf -am $USER
+qconf -au $USER users
+qconf -aattr hostgroup hostlist $(hostname) @allhosts
+for node in $(grep -o "compute.*" /etc/hosts); do qconf -aattr queue slots "[$node=2]" all.q; done
+for node in $(grep -o "compute.*" /etc/hosts); do sudo qconf -mattr exechost complex_values slots=2 ${node}; done
+# remove frontend as compute node
+qconf -mhgrp @allhosts
+    #remove frontend001
+qconf -de frontend001
+$ qconf -ap smp
+    pe_name            smp
+    slots              9999
+    user_lists         NONE
+    xuser_lists        NONE
+    start_proc_args    /bin/true
+    stop_proc_args     /bin/true
+    allocation_rule    $fill_up 
+    control_slaves     FALSE
+    job_is_first_task  FALSE
+    urgency_slots      min
+    accounting_summary FALSE
+$ qconf -mq all.q
+    ...
+    pe_list               make smp
+    ...
+
+# sort out falcon
+sudo apt-get install -y git python-pip time
+cd /shared
+./falcon.sh install
+# it might be needed to change the compute node configuration to remove slot limitation
+$ qconf -me compute001
+    complex_values        NONE
