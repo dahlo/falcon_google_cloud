@@ -1,0 +1,72 @@
+# Elasticluster Configuration Template
+# ====================================
+#
+### MOVE TO ~/.elasticluster/config
+#
+# This is a template configuration file for elasticluster. 
+#
+# The file is parsed by ConfigParser module and has a syntax similar
+# to Microsoft Windows INI files. 
+#
+# It consists of `sections` led by a `[sectiontype/name]` header and
+# followed by lines in the form
+#
+# key=value
+#
+# Section names are in the form `[type/name]` wher `type` must be one of:
+#
+# - cloud   (define a cloud provider)
+# - login   (define a way to access a virtual machine)
+# - setup   (define a way to setup the cluster)
+# - cluster (define the composition of a cluster. It contains
+#            references to the other sections.)
+# - cluster/<clustername> 
+#            (override configuration for specific group
+#            of nodes within a cluster)
+#
+#
+# You must define at least one for each section types in order to have
+# a valid configuration file.
+
+# Gridengine software to be configured by Ansible
+[setup/ansible-gridengine]
+provider=ansible
+frontend_groups=gridengine_master
+compute_groups=gridengine_clients
+
+# Added from google cloud tutorial
+[cloud/google-cloud]
+provider=google
+zone=europe-west1-d
+gce_project_id=XXXXXXXXXXXXXXXXXXXXX
+gce_client_id=XXXXXXXXX.apps.googleusercontent.com
+gce_client_secret=XXXXXXXXXXXXXXXXXXXXXXX
+
+# Create a login (call it "google-login")
+[login/google-login]
+image_user=XXXXXXXXXXXXX
+image_user_sudo=root
+image_sudo=True
+user_key_name=elasticluster
+user_key_private=~/.ssh/google_compute_engine
+user_key_public=~/.ssh/google_compute_engine.pub
+
+# create cluster node templates
+[cluster/gridengine/frontend]
+flavor=n1-standard-1
+image_userdata=
+
+[cluster/gridengine/compute]
+flavor=n1-standard-2
+scheduling=preemptible
+
+# Bring all of the elements together to define a cluster called "gridengine"
+[cluster/gridengine]
+cloud=google-cloud
+login=google-login
+setup_provider=ansible-gridengine
+security_group=default
+image_id=debian-7-wheezy-v20150526
+frontend_nodes=1
+compute_nodes=3
+ssh_to=frontend
