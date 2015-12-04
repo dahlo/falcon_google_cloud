@@ -1,5 +1,5 @@
 # start cluster
-$ elasticluster start -v gridengine
+elasticluster start -v gridengine
 
 # get instance name of frontend
 ZONE=europe-west1-d

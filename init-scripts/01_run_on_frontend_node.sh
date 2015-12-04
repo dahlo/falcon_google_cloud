@@ -9,7 +9,7 @@ sudo chmod a+w /mnt/shared
 sudo /usr/share/google/safe_format_and_mount -m "mkfs.ext4 -F" /dev/sdb /mnt/shared
 
 # sort out the gluster data sharing
-sudo apt-get install -y glusterfs-server python-virtualenv python-dev git
+sudo apt-get install -y glusterfs-server python-virtualenv python-dev git htop vim
 sudo mkdir /shared # make it world writable? or at least the user
 sudo chmod a+w /shared
 sudo gluster volume create shared transport tcp frontend001:/mnt/shared/brick
@@ -53,6 +53,21 @@ rm smp.tmp
 # include parallell environment in the queue
 qconf -mattr queue pe_list smp all.q
 
+# enablle resubmission of failed jobs
+qconf -sconf > global
+sed -i "s/reschedule_unknown           00:00:00/reschedule_unknown           00:05:00/g" global
+qconf -Mconf global
+rm global
+
+
+
+
+
+
+
+
+### -------------- the code below should be in various parts of 02_run_on_frontend_node_to_manage_falcon.sh
+### it works to just run all the commands in serial and it will install and launch a test run of falcon though
 
 
 
@@ -64,7 +79,7 @@ WORK=$PWD
 FC=$WORK/fc_env
 
 # Python virtualenv
-virtualenv --no-site-packages $FC
+virtualenv $FC
 ## New python executable in /home/UNIXHOME/jchin/task2014/falcon_pb_github/fc_env/bin/python
 ## Installing setuptools, pip, wheel...done.
 
@@ -116,8 +131,9 @@ find data -name "*.fasta" > input.fofn
 cp $WORK/FALCON/examples/fc_run_ecoli.cfg .
 sed -i "s/jobqueue = your_queue/jobqueue = all.q/g" fc_run_ecoli.cfg
 
-# tell every job to request 2 slots only
-sed -i "s/smp .*/smp 1/g" fc_run_ecoli.cfg
+# tell every job to request 2 slots only and enable restart
+sed -i "s/smp [[:digit:]]\+/smp 1 -r y/g" fc_run_ecoli.cfg
+
 
 # run the analysis
 fc_run.py fc_run_ecoli.cfg
